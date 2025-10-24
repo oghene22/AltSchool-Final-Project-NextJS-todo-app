@@ -35,7 +35,7 @@ Follow these instructions to get a copy of the project up and running on your lo
 
 **1. Clone the repository:**
 ```bash
-git clone [https://github.com/oghene22/NextJS-Todo-App.git](https://github.com/oghene22/NextJS-Todo-App.git)
+git clone [https://github.com/oghene22/AltSchool-Final-Project-NextJS-todo-app.git](https://github.com/oghene22/AltSchool-Final-Project-NextJS-todo-app.git)
 cd YourRepoName
 ```
 
