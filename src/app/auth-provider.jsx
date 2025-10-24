@@ -1,47 +1,55 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, createContext, useContext } from "react";
 import { supabase } from "../supabase";
 import { useRouter, usePathname } from "next/navigation";
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
 
+const AuthContext = createContext(null);
+
 export function AuthProvider({ children }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [isLoading, setIsLoading] = useState(true);
+  const [session, setSession] = useState(null);
+  const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        const user = session?.user;
-
-        if (!user && pathname !== "/auth") {
-          router.push("/auth");
-        }
-        if (user && pathname === "/auth") {
-          router.push("/");
-        }
-        setIsLoading(false);
-      }
-    );
-
     const checkInitialSession = async () => {
       const { data } = await supabase.auth.getSession();
-      if (!data.session && pathname !== "/auth") {
+      const currentSession = data.session;
+      setSession(currentSession);
+      setLoading(false); 
+
+      if (!currentSession && pathname !== "/auth") {
         router.push("/auth");
       }
-      setIsLoading(false);
+      if (currentSession && pathname === "/auth") {
+        router.push("/");
+      }
     };
 
     checkInitialSession();
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, newSession) => {
+        setSession(newSession);
+
+        if (event === "SIGNED_IN" && pathname === "/auth") {
+          router.push("/");
+        }
+        if (event === "SIGNED_OUT" && pathname !== "/auth") {
+          router.push("/auth");
+        }
+      }
+    );
 
     return () => {
       subscription?.unsubscribe();
     };
   }, [pathname, router]);
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Box
         display="flex"
@@ -54,5 +62,18 @@ export function AuthProvider({ children }) {
     );
   }
 
-  return <>{children}</>;
+  if (!session && pathname !== "/auth") {
+    return null;
+  }
+  if (session && pathname === "/auth") {
+    return null;
+  }
+
+  return (
+    <AuthContext.Provider value={{ session }}>
+      {children}
+    </AuthContext.Provider>
+  );
 }
+
+export const useAuth = () => useContext(AuthContext);

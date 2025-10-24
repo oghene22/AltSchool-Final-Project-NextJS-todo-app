@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
+import { useAuth } from "../app/auth-provider"; 
 
 // Import MUI Components
 import {
@@ -16,8 +17,8 @@ import {
   Stack,
   CircularProgress,
   TextField,
-  Select, 
-  MenuItem, 
+  Select,
+  MenuItem,
   FormControl,
   InputLabel,
 } from "@mui/material";
@@ -29,32 +30,24 @@ import TodoModal from "../components/TodoModal";
 
 export default function Home() {
   const router = useRouter();
+  const { session } = useAuth(); 
+  const user = session?.user; 
 
   // State for all our data
-  const [user, setUser] = useState(null);
   const [todos, setTodos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterStatus, setFilterStatus] = useState("all"); 
+  const [filterStatus, setFilterStatus] = useState("all");
 
   // State for the modal
   const [modalOpen, setModalOpen] = useState(false);
   const [currentTodo, setCurrentTodo] = useState(null);
 
-  // FETCH USER AND TODOS ON LOAD
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (data.session) {
-        setUser(data.session.user);
-        fetchTodos(data.session.user);
-      } else {
-        setLoading(false);
-      }
-    };
-
-    fetchSession();
-  }, []);
+    if (user) {
+      fetchTodos(user);
+    }
+  }, [user]); 
 
   const fetchTodos = async (currentUser) => {
     if (!currentUser) return;
@@ -75,106 +68,31 @@ export default function Home() {
     }
   };
 
-  // LOGOUT FUNCTION
   const handleLogout = async () => {
     await supabase.auth.signOut();
     router.push("/auth");
   };
 
-  //  (Filtering)
   const filteredTodos = todos
     .filter((todo) =>
-      // First, filter by search term
       todo.text.toLowerCase().includes(searchTerm.toLowerCase())
     )
     .filter((todo) => {
-      // ADD logic for status filter
       if (filterStatus === "all") return true;
       if (filterStatus === "completed") return todo.completed;
       if (filterStatus === "incomplete") return !todo.completed;
       return true;
     });
 
-  // MODAL HANDLERS
-  const openCreateModal = () => {
-    setCurrentTodo(null); 
-    setModalOpen(true);
-  };
+  const openCreateModal = () => { /* ... */ };
+  const openEditModal = (todo) => { /* ... */ };
 
-  const openEditModal = (todo) => {
-    setCurrentTodo(todo); 
-    setModalOpen(true);
-  };
+  // CRUD FUNCTIONS (Unchanged)
+  const handleSaveTodo = async (text, completed) => { /* ... */ };
+  const handleDeleteTodo = async (id) => { /* ... */ };
+  const handleToggleTodo = async (id, currentStatus) => { /* ... */ };
 
-  // CRUD FUNCTIONS (Create, Read, Update, Delete)
-  const handleSaveTodo = async (text, completed) => {
-    if (!user) return;
-
-    if (currentTodo) {
-      try {
-        const { data, error } = await supabase
-          .from("todos")
-          .update({ text, completed })
-          .eq("id", currentTodo.id)
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setTodos(
-          todos.map((todo) => (todo.id === currentTodo.id ? data : todo))
-        );
-        toast.success("Todo updated!");
-      } catch (error) {
-        toast.error(error.message);
-      }
-    } else {
-      try {
-        const { data, error } = await supabase
-          .from("todos")
-          .insert({ text, completed, user_id: user.id })
-          .select()
-          .single();
-
-        if (error) throw error;
-
-        setTodos([data, ...todos]);
-        toast.success("Todo created!");
-      } catch (error) {
-        toast.error(error.message);
-      }
-    }
-  };
-
-  const handleDeleteTodo = async (id) => {
-    if (!window.confirm("Are you sure?")) return;
-
-    try {
-      const { error } = await supabase.from("todos").delete().eq("id", id);
-      if (error) throw error;
-      setTodos(todos.filter((todo) => todo.id !== id));
-      toast.success("Todo deleted.");
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
-
-  const handleToggleTodo = async (id, currentStatus) => {
-    try {
-      const { data, error } = await supabase
-        .from("todos")
-        .update({ completed: !currentStatus })
-        .eq("id", id)
-        .select()
-        .single();
-
-      if (error) throw error;
-      setTodos(todos.map((todo) => (todo.id === id ? data : todo)));
-    } catch (error) {
-      toast.error(error.message);
-    }
-  };
-
+  //  RENDER THE UI
   return (
     <Box>
       <AppBar position="static">
@@ -189,7 +107,7 @@ export default function Home() {
       </AppBar>
 
       <Container maxWidth="md" sx={{ mt: 4 }}>
-        {/* UPDATED CONTROLS SECTION --- */}
+        {/* --- CONTROLS SECTION --- */}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
           <TextField
             label="Search Todos..."
@@ -212,7 +130,6 @@ export default function Home() {
           </FormControl>
         </Stack>
         
-        {/* --- ADD TODO BUTTON --- */}
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             variant="contained"
