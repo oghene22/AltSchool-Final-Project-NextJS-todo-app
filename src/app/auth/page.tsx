@@ -16,11 +16,12 @@ import {
 // Import react-hot-toast
 import { toast } from "react-hot-toast";
 import { useRouter } from "next/navigation";
+import type { ChangeEvent, KeyboardEvent } from "react";
 
 export default function AuthPage() {
-  const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState<boolean>(false);
+  const [email, setEmail] = useState<string>("");
+  const [password, setPassword] = useState<string>("");
   const router = useRouter();
 
   const handleSignUp = async () => {
@@ -33,7 +34,11 @@ export default function AuthPage() {
       if (error) throw error;
       router.push("/");
     } catch (error) {
-      toast.error(error.message);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("An unknown error occurred during sign up.");
+      }
     } finally {
       setLoading(false);
     }
@@ -49,9 +54,27 @@ export default function AuthPage() {
       if (error) throw error;
       router.push("/");
     } catch (error) {
-      toast.error(error.message);
+      if (error instanceof Error) {
+        toast.error(error.message);
+      } else {
+        toast.error("An unknown error occurred during login.");
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setEmail(event.target.value);
+  };
+
+  const handlePasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setPassword(event.target.value);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      handleLogin(); 
     }
   };
 
@@ -77,7 +100,7 @@ export default function AuthPage() {
               label="Your Email"
               type="email"
               value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              onChange={handleEmailChange}
               variant="outlined"
               fullWidth
             />
@@ -85,8 +108,8 @@ export default function AuthPage() {
               label="Your Password"
               type="password"
               value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+              onChange={handlePasswordChange} 
+              onKeyDown={handleKeyDown}       
               variant="outlined"
               fullWidth
             />

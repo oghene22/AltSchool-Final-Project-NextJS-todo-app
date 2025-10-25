@@ -4,7 +4,8 @@ import { useState, useEffect } from "react";
 import { supabase } from "../supabase";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
-import { useAuth } from "../app/auth-provider"; 
+import { useAuth } from "./auth-provider";
+import type { User } from "@supabase/supabase-js"; 
 
 // Import MUI Components
 import {
@@ -21,6 +22,7 @@ import {
   MenuItem,
   FormControl,
   InputLabel,
+  SelectChangeEvent, 
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 
@@ -28,28 +30,33 @@ import AddIcon from "@mui/icons-material/Add";
 import TodoCard from "../components/TodoCard";
 import TodoModal from "../components/TodoModal";
 
+interface Todo {
+  id: number;
+  created_at: string;
+  text: string;
+  completed: boolean;
+  user_id: string;
+}
+
 export default function Home() {
   const router = useRouter();
-  const { session } = useAuth(); 
-  const user = session?.user; 
+  const { session } = useAuth();
+  const user = session?.user;
 
-  // State for all our data
-  const [todos, setTodos] = useState([]);
+  const [todos, setTodos] = useState<Todo[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState("all");
-
-  // State for the modal
   const [modalOpen, setModalOpen] = useState(false);
-  const [currentTodo, setCurrentTodo] = useState(null);
+  const [currentTodo, setCurrentTodo] = useState<Todo | null>(null);
 
   useEffect(() => {
     if (user) {
       fetchTodos(user);
     }
-  }, [user]); 
+  }, [user]);
 
-  const fetchTodos = async (currentUser) => {
+  const fetchTodos = async (currentUser: User) => {
     if (!currentUser) return;
     try {
       setLoading(true);
@@ -60,8 +67,10 @@ export default function Home() {
         .order("created_at", { ascending: false });
 
       if (error) throw error;
-      setTodos(data);
-    } catch (error) {
+      if (data) {
+        setTodos(data);
+      }
+    } catch (error: any) {
       toast.error(error.message);
     } finally {
       setLoading(false);
@@ -74,25 +83,98 @@ export default function Home() {
   };
 
   const filteredTodos = todos
-    .filter((todo) =>
+    .filter((todo: Todo) => 
       todo.text.toLowerCase().includes(searchTerm.toLowerCase())
     )
-    .filter((todo) => {
+    .filter((todo: Todo) => { 
       if (filterStatus === "all") return true;
       if (filterStatus === "completed") return todo.completed;
       if (filterStatus === "incomplete") return !todo.completed;
       return true;
     });
 
-  const openCreateModal = () => { /* ... */ };
-  const openEditModal = (todo) => { /* ... */ };
+  const openCreateModal = () => {
+    setCurrentTodo(null);
+    setModalOpen(true);
+  };
 
-  // CRUD FUNCTIONS (Unchanged)
-  const handleSaveTodo = async (text, completed) => { /* ... */ };
-  const handleDeleteTodo = async (id) => { /* ... */ };
-  const handleToggleTodo = async (id, currentStatus) => { /* ... */ };
+  const openEditModal = (todo: Todo) => {
+    setCurrentTodo(todo);
+    setModalOpen(true);
+  };
 
-  //  RENDER THE UI
+  const handleSaveTodo = async (text: string, completed: boolean) => {
+    if (!user) return;
+
+    if (currentTodo) {
+      try {
+        const { data, error } = await supabase
+          .from("todos")
+          .update({ text, completed })
+          .eq("id", currentTodo.id)
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setTodos(
+          todos.map((todo) => (todo.id === currentTodo.id ? data : todo))
+        );
+        toast.success("Todo updated!");
+      } catch (error: any) {
+        toast.error(error.message);
+      }
+    } else {
+      try {
+        const { data, error } = await supabase
+          .from("todos")
+          .insert({ text, completed, user_id: user.id })
+          .select()
+          .single();
+
+        if (error) throw error;
+
+        setTodos([data, ...todos]);
+        toast.success("Todo created!");
+      } catch (error: any) {
+        toast.error(error.message);
+      }
+    }
+  };
+
+  const handleDeleteTodo = async (id: number) => {
+    if (!window.confirm("Are you sure?")) return;
+
+    try {
+      const { error } = await supabase.from("todos").delete().eq("id", id);
+      if (error) throw error;
+      setTodos(todos.filter((todo) => todo.id !== id));
+      toast.success("Todo deleted.");
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleToggleTodo = async (id: number, currentStatus: boolean) => {
+    try {
+      const { data, error } = await supabase
+        .from("todos")
+        .update({ completed: !currentStatus })
+        .eq("id", id)
+        .select()
+        .single();
+
+      if (error) throw error;
+      setTodos(todos.map((todo) => (todo.id === id ? data : todo)));
+    } catch (error: any) {
+      toast.error(error.message);
+    }
+  };
+
+  const handleFilterChange = (event: SelectChangeEvent) => {
+    setFilterStatus(event.target.value as string);
+  };
+
   return (
     <Box>
       <AppBar position="static">
@@ -107,7 +189,6 @@ export default function Home() {
       </AppBar>
 
       <Container maxWidth="md" sx={{ mt: 4 }}>
-        {/* --- CONTROLS SECTION --- */}
         <Stack direction={{ xs: "column", sm: "row" }} spacing={2} sx={{ mb: 3 }}>
           <TextField
             label="Search Todos..."
@@ -121,7 +202,7 @@ export default function Home() {
             <Select
               value={filterStatus}
               label="Filter By"
-              onChange={(e) => setFilterStatus(e.target.value)}
+              onChange={handleFilterChange}
             >
               <MenuItem value={"all"}>All</MenuItem>
               <MenuItem value={"completed"}>Completed</MenuItem>
@@ -129,7 +210,7 @@ export default function Home() {
             </Select>
           </FormControl>
         </Stack>
-        
+
         <Box sx={{ mb: 3, display: 'flex', justifyContent: 'flex-end' }}>
           <Button
             variant="contained"

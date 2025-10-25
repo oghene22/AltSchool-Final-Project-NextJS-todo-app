@@ -11,7 +11,22 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 
-export default function TodoCard({ todo, onToggle, onEdit, onDelete }) {
+interface Todo {
+  id: number;
+  created_at: string;
+  text: string;
+  completed: boolean;
+  user_id: string;
+}
+
+interface TodoCardProps {
+  todo: Todo;
+  onToggle: (id: number, currentStatus: boolean) => void;
+  onEdit: (todo: Todo) => void;
+  onDelete: (id: number) => void;
+}
+
+export default function TodoCard({ todo, onToggle, onEdit, onDelete }: TodoCardProps) {
   return (
     <Card
       variant="outlined"

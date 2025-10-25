@@ -4,5 +4,9 @@ import { createClient } from '@supabase/supabase-js'
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-// Create and export the Supabase client
+// Check if the environment variables are actually set
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Supabase URL and Anon Key must be defined in your .env.local file');
+}
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)

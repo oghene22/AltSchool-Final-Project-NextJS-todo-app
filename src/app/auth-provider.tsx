@@ -5,14 +5,23 @@ import { supabase } from "../supabase";
 import { useRouter, usePathname } from "next/navigation";
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
+// Import Session and ReactNode types
+import type { Session } from "@supabase/supabase-js";
+import type { ReactNode } from "react";
 
-const AuthContext = createContext(null);
+// Define the shape of the Context's value
+interface AuthContextType {
+  session: Session | null;
+}
 
-export function AuthProvider({ children }) {
+// Create context with 'undefined' as default.
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
-  const [session, setSession] = useState(null);
-  const [loading, setLoading] = useState(true); 
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const checkInitialSession = async () => {
@@ -33,7 +42,7 @@ export function AuthProvider({ children }) {
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, newSession) => {
-        setSession(newSession);
+        setSession(newSession); 
 
         if (event === "SIGNED_IN" && pathname === "/auth") {
           router.push("/");
@@ -76,4 +85,10 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};

@@ -12,10 +12,28 @@ import {
   Checkbox,
   FormControlLabel,
 } from "@mui/material";
+import type { ChangeEvent, KeyboardEvent } from "react";
 
-export default function TodoModal({ open, onClose, onSave, todo }) {
-  const [text, setText] = useState("");
-  const [completed, setCompleted] = useState(false);
+// Define the Todo type
+interface Todo {
+  id: number;
+  created_at: string;
+  text: string;
+  completed: boolean;
+  user_id: string;
+}
+
+// Define the props for this modal component
+interface TodoModalProps {
+  open: boolean;
+  onClose: () => void;
+  onSave: (text: string, completed: boolean) => void;
+  todo: Todo | null;
+}
+
+export default function TodoModal({ open, onClose, onSave, todo }: TodoModalProps) {
+  const [text, setText] = useState<string>("");
+  const [completed, setCompleted] = useState<boolean>(false);
 
   // Reset form when modal opens/closes or todo changes
   useEffect(() => {
@@ -36,6 +54,20 @@ export default function TodoModal({ open, onClose, onSave, todo }) {
     onClose();
   };
 
+  const handleTextChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setText(event.target.value);
+  };
+
+  const handleCompletedChange = (event: ChangeEvent<HTMLInputElement>) => {
+    setCompleted(event.target.checked);
+  };
+
+  const handleKeyDown = (event: KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "Enter") {
+      handleSave();
+    }
+  };
+
   return (
     <Dialog open={open} onClose={onClose} fullWidth maxWidth="sm">
       <DialogTitle>{todo ? "Edit Todo" : "Create New Todo"}</DialogTitle>
@@ -47,15 +79,15 @@ export default function TodoModal({ open, onClose, onSave, todo }) {
             fullWidth
             variant="outlined"
             value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSave()}
+            onChange={handleTextChange}
+            onKeyDown={handleKeyDown}
           />
           {todo && (
             <FormControlLabel
               control={
                 <Checkbox
                   checked={completed}
-                  onChange={(e) => setCompleted(e.target.checked)}
+                  onChange={handleCompletedChange}
                 />
               }
               label="Completed"
